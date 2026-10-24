@@ -17,7 +17,14 @@ import {
   Database,
   Flag,
   Search,
-  MoreHorizontal
+  MoreHorizontal,
+  ArrowRight,
+  ArrowLeft,
+  Menu,
+  X,
+  CheckCircle2,
+  Loader2,
+  Check
 } from 'lucide-react';
 
 import {
@@ -27,6 +34,7 @@ import {
   FaLinkedin
 } from 'react-icons/fa6';
 
+import logo from './assets/TrackUGClogo.png';
 import doodle1 from './assets/Doodle1.png';
 import doodle2 from './assets/Doodle2.png';
 import doodle3 from './assets/Doodle3.png';
@@ -123,35 +131,103 @@ const STATUS_CLASSES = {
 };
 
 function App() {
+  const [currentPage, setCurrentPage] = useState(() => {
+    return window.location.hash === '#/waitlist' ? 'waitlist' : 'home';
+  });
   const [email, setEmail] = useState('');
-  const [monthlyWorth, setMonthlyWorth] = useState('');
-  const [headache, setHeadache] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 15);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
+  useEffect(() => {
+    const handleHash = () => {
+      const page = window.location.hash === '#/waitlist' ? 'waitlist' : 'home';
+      setCurrentPage(page);
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
-  const scrollToSignup = () => {
-    document.getElementById('signup')?.scrollIntoView({ behavior: 'smooth' });
+  const navigateTo = (page, targetId = null) => {
+    setMobileMenuOpen(false);
+    if (page === 'waitlist') {
+      window.location.hash = '#/waitlist';
+      setCurrentPage('waitlist');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.location.hash = '#/';
+      setCurrentPage('home');
+      if (targetId) {
+        setTimeout(() => {
+          smoothScrollTo(targetId);
+        }, 80);
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+  };
+
+  const smoothScrollTo = (targetId, duration = 900) => {
+    setMobileMenuOpen(false);
+    if (currentPage !== 'home') {
+      navigateTo('home', targetId);
+      return;
+    }
+    const target = document.getElementById(targetId);
+    if (!target) return;
+
+    const headerOffset = 70;
+    const targetPosition = target.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+    const startPosition = window.pageYOffset;
+    const distance = targetPosition - startPosition;
+    let startTime = null;
+
+    const easeInOutCubic = (t) => {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    };
+
+    const step = (currentTime) => {
+      if (!startTime) startTime = currentTime;
+      const timeElapsed = currentTime - startTime;
+      const progress = Math.min(timeElapsed / duration, 1);
+      const ease = easeInOutCubic(progress);
+
+      window.scrollTo(0, startPosition + distance * ease);
+
+      if (timeElapsed < duration) {
+        window.requestAnimationFrame(step);
+      }
+    };
+
+    window.requestAnimationFrame(step);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!email || !email.trim()) return;
     setIsSubmitting(true);
+    setErrorMsg('');
     try {
       await addDoc(collection(db, 'waitlist'), {
-        email,
-        monthlyWorth,
-        headache,
+        email: email.trim().toLowerCase(),
         timestamp: new Date()
       });
-
-      // Attempting to skip product page using wanted=true parameter
-      const checkoutUrl = `https://trackugc.gumroad.com/l/checkout?wanted=true&email=${encodeURIComponent(email)}`;
-      window.location.href = checkoutUrl;
-
+      setIsSubmitted(true);
+      setEmail('');
     } catch (error) {
       console.error("Error adding document: ", error);
-      alert("Something went wrong. Please try again.");
+      setErrorMsg("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -159,17 +235,196 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Hero Section */}
-      <section className="hero">
-        <div className="hero-content">
-          <h1>Stop managing UGC campaigns across Whatsapp, Sheets and Chaos.</h1>
-          <p>
-            Track every creator, draft, approval, revision, deadline, live link and winning format in one single organized workspace.
-          </p>
-          <button className="cta-button" onClick={scrollToSignup}>
-            Signup for waitlist <span>&gt;&gt;</span>
-          </button>
+      {/* Header */}
+      <header className={`site-header ${scrolled ? 'header-scrolled' : ''}`}>
+        <div className="header-container">
+          <a
+            href="#"
+            className="brand-logo"
+            onClick={(e) => {
+              e.preventDefault();
+              navigateTo('home');
+            }}
+          >
+            <img src={logo} alt="TrackUGC Logo" className="brand-logo-img" />
+            <span className="brand-name">TrackUGC</span>
+          </a>
+
+          {/* Desktop Navigation */}
+          <nav className="header-nav">
+            <button className="nav-link" onClick={() => navigateTo('home', 'preview')}>
+              Platform
+            </button>
+            <button className="nav-link" onClick={() => navigateTo('home', 'features')}>
+              Features
+            </button>
+            <button className="nav-link" onClick={() => navigateTo('home', 'comparison')}>
+              Why TrackUGC
+            </button>
+            <button className="nav-link" onClick={() => navigateTo('waitlist')}>
+              Waitlist
+            </button>
+          </nav>
+
+          {/* Header Action Buttons */}
+          <div className="header-actions">
+            <button className="header-cta-btn" onClick={() => navigateTo('waitlist')}>
+              <span>Join Waitlist</span>
+              <span aria-hidden="true">&gt;&gt;</span>
+            </button>
+
+            {/* Mobile Hamburger Button */}
+            <button
+              className="mobile-toggle-btn"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle Navigation"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Navigation Drawer */}
+        {mobileMenuOpen && (
+          <div className="mobile-nav-drawer">
+            <button className="mobile-nav-link" onClick={() => navigateTo('home', 'preview')}>
+              Platform
+            </button>
+            <button className="mobile-nav-link" onClick={() => navigateTo('home', 'features')}>
+              Features
+            </button>
+            <button className="mobile-nav-link" onClick={() => navigateTo('home', 'comparison')}>
+              Why TrackUGC
+            </button>
+            <button className="mobile-nav-link" onClick={() => navigateTo('waitlist')}>
+              Waitlist
+            </button>
+            <div className="mobile-nav-divider"></div>
+            <button className="mobile-cta-btn" onClick={() => navigateTo('waitlist')}>
+              <span>Signup for free</span>
+              <ArrowRight size={15} />
+            </button>
+          </div>
+        )}
+      </header>
+
+      <div className="spots-counter">0/20 spots taken</div>
+
+      {/* Page Content */}
+      {currentPage === 'waitlist' ? (
+        <main className="waitlist-view">
+          <section className="hero waitlist-hero">
+            <div className="hero-content">
+              {/* Centered TrackUGC Logo */}
+              <div className="waitlist-logo-container">
+                <img src={logo} alt="TrackUGC Logo" className="waitlist-hero-logo" />
+              </div>
+
+              <h1>Join the TrackUGC Waitlist</h1>
+              <p>
+                Stop managing UGC campaigns across WhatsApp, Sheets and Chaos. Enter your work email below to get early access.
+              </p>
+
+              {!isSubmitted ? (
+                <form className="waitlist-inline-form" onSubmit={handleSubmit}>
+                  <div className="waitlist-input-wrapper">
+                    <input
+                      type="email"
+                      required
+                      placeholder="Enter your work email..."
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="waitlist-input"
+                      disabled={isSubmitting}
+                      autoFocus
+                    />
+                  </div>
+                  <button type="submit" className="cta-button waitlist-btn" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 size={16} className="spinner-icon" />
+                        <span>Joining...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Join waitlist</span>
+                        <ArrowRight size={15} />
+                      </>
+                    )}
+                  </button>
+                </form>
+              ) : (
+                <div className="waitlist-success-card">
+                  <div className="success-icon-wrap">
+                    <CheckCircle2 size={40} className="success-check-icon" />
+                  </div>
+                  <h3>You're on the waitlist!</h3>
+                  <p>
+                    Thanks for signing up. You're officially on the list and we'll email you soon with early access details.
+                  </p>
+                  <button
+                    type="button"
+                    className="waitlist-reset-btn"
+                    onClick={() => setIsSubmitted(false)}
+                  >
+                    Sign up another email
+                  </button>
+                </div>
+              )}
+
+              {errorMsg && <p className="waitlist-error">{errorMsg}</p>}
+            </div>
+
+            {/* Doodles framing the hero */}
+            <div className="doodle img-doodle doodle-1">
+              <img src={doodle1} alt="" />
+            </div>
+            <div className="doodle img-doodle doodle-2">
+              <img src={doodle2} alt="" />
+            </div>
+            <div className="doodle img-doodle doodle-3">
+              <img src={doodle3} alt="" />
+            </div>
+          </section>
+
+          <footer className="site-footer">
+            <div className="footer-inner container">
+              <div className="footer-brand">
+                <img src={logo} alt="TrackUGC" className="brand-logo-img" />
+                <span>TrackUGC</span>
+              </div>
+              <p>© {new Date().getFullYear()} TrackUGC. All rights reserved.</p>
+            </div>
+          </footer>
+        </main>
+      ) : (
+        <>
+          {/* Hero Section */}
+          <section className="hero home-hero">
+            <div className="hero-content">
+              <p className="hero-offer">
+                <span className="hero-offer-dot" aria-hidden="true" />
+                <span>First 20 early birds:</span>
+                <strong>$49/month</strong>
+                <span className="hero-offer-compare">instead of <s>$99</s></span>
+              </p>
+              <h1>
+                <span className="hero-underline">
+                  Pain-free
+                  <svg className="hero-underline-strokes" viewBox="0 0 260 26" aria-hidden="true">
+                    <path d="M2 14 L32 11 L66 9 L101 7 L137 6 L171 6 L199 5 L216 5 L222 7 L220 9 L210 10 L190 9 L166 9 L140 10 L115 12 L91 14 L74 17 L65 19 L68 21 L80 19 L105 17 L133 17 L163 18 L194 20 L226 22 L258 24" />
+                  </svg>
+                </span>{" "}
+                UGC Campaign management software
+              </h1>
+              <p className="hero-description">
+                Track every creator, draft, approval, revision, deadline, live link and winning format in one single organized workspace.
+              </p>
+              <button className="cta-button" onClick={() => navigateTo('waitlist')}>
+                Signup for free <span>&gt;&gt;</span>
+              </button>
+              <p className="hero-subnote">No payment now • founding price locked in</p>
+            </div>
 
         {/* Doodles - Moved back outside to ensure proper background blending */}
         <div className="doodle img-doodle doodle-1">
@@ -184,7 +439,7 @@ function App() {
       </section>
 
       {/* Dashboard Section */}
-      <section className="dashboard-wrapper">
+      <section className="dashboard-wrapper" id="preview">
         <div className="dashboard">
 
           {/* Sidebar */}
@@ -332,7 +587,7 @@ function App() {
       </section>
 
       {/* Features Grid Section */}
-      <section className="features-section container">
+      <section className="features-section container" id="features">
         <h2 className="section-title">How TrackUGC helps you.</h2>
         <div className="features-grid">
 
@@ -450,7 +705,7 @@ function App() {
       </section>
 
       {/* Before / After Section */}
-      <section className="before-after-section container">
+      <section className="before-after-section container" id="comparison">
         <h2 className="section-title">From scattered workflows to organized campaigns</h2>
         <div className="comparison-grid">
 
@@ -494,60 +749,32 @@ function App() {
         </div>
       </section>
 
-      {/* Signup Form Section */}
-      <section className="signup-section container" id="signup">
-        <div className="signup-container">
-          <h2 className="section-title">Answer these Questions to get TrackUGC for $5 only.</h2>
-
-          <form className="signup-form" onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="email">1. Work Email</label>
-              <input
-                type="email"
-                id="email"
-                required
-                placeholder="name@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="headache">2. What's your biggest UGC workflow headache right now?</label>
-              <textarea
-                id="headache"
-                required
-                placeholder="What's your biggest pain right now?"
-                rows="4"
-                value={headache}
-                onChange={(e) => setHeadache(e.target.value)}
-              ></textarea>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="monthlyWorth">3. What would software like this realistically be worth to your team monthly?</label>
-              <select
-                id="monthlyWorth"
-                required
-                value={monthlyWorth}
-                onChange={(e) => setMonthlyWorth(e.target.value)}
-              >
-                <option value="" disabled>Select an option</option>
-                <option value="<$29/mo">&lt;$29/mo</option>
-                <option value="$29–99/mo">$29–99/mo</option>
-                <option value="$100–299/mo">$100–299/mo</option>
-                <option value="$300+/mo">$300+/mo</option>
-              </select>
-            </div>
-
-            <button type="submit" className="cta-button submit-btn" disabled={isSubmitting}>
-              {isSubmitting ? 'Submitting...' : 'Signup for $5'}
-            </button>
-          </form>
+      {/* Closing CTA Section */}
+      <section className="closing-cta-section container">
+        <div className="closing-cta-card">
+          <h2>Ready to scale your UGC without the chaos?</h2>
+          <p>
+            Track every creator, draft, revision, deadline, and winning format in one organized workspace.
+          </p>
+          <button className="cta-button" onClick={() => navigateTo('waitlist')}>
+            Signup for free <span>&gt;&gt;</span>
+          </button>
         </div>
       </section>
 
-    </div>
+      <footer className="site-footer">
+        <div className="footer-inner container">
+          <div className="footer-brand">
+            <img src={logo} alt="TrackUGC" className="brand-logo-img" />
+            <span>TrackUGC</span>
+          </div>
+          <p>© {new Date().getFullYear()} TrackUGC. All rights reserved.</p>
+        </div>
+      </footer>
+    </>
+  )}
+
+</div>
   );
 }
 
