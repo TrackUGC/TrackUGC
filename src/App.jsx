@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { app, db } from './firebase';
-import { collection, addDoc } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { db } from './firebase';
+import { collection, doc, getDoc, runTransaction } from 'firebase/firestore';
 import {
   Folder,
   UploadCloud,
@@ -40,10 +39,7 @@ import doodle1 from './assets/Doodle1.png';
 import doodle2 from './assets/Doodle2.png';
 import doodle3 from './assets/Doodle3.png';
 
-const fetchWaitlistCount = httpsCallable(
-  getFunctions(app, 'us-central1'),
-  'getWaitlistCount'
-);
+const waitlistCounterRef = doc(db, 'settings', 'waitlistCounter');
 
 const DUMMY_CREATORS = [
   {
@@ -151,9 +147,9 @@ function App() {
 
   useEffect(() => {
     let isActive = true;
-    fetchWaitlistCount()
-      .then((result) => {
-        if (isActive) setWaitlistCount(result.data.count);
+    getDoc(waitlistCounterRef)
+      .then((snapshot) => {
+        if (isActive) setWaitlistCount(snapshot.exists() ? snapshot.data().count : 0);
       })
       .catch((error) => {
         console.error('Error loading waitlist count:', error);
@@ -243,20 +239,28 @@ function App() {
     setIsSubmitting(true);
     setErrorMsg('');
     try {
-      await addDoc(collection(db, 'waitlist'), {
-        email: email.trim().toLowerCase(),
-        timestamp: new Date()
+      const emailRef = doc(collection(db, 'waitlist'));
+      const normalizedEmail = email.trim().toLowerCase();
+      const nextCount = await runTransaction(db, async (transaction) => {
+        const counterSnapshot = await transaction.get(waitlistCounterRef);
+        const count = counterSnapshot.exists() ? counterSnapshot.data().count : 0;
+        const updatedCount = count + 1;
+
+        transaction.set(emailRef, {
+          email: normalizedEmail,
+          timestamp: new Date()
+        });
+        transaction.set(waitlistCounterRef, {
+          count: updatedCount,
+          lastEntryId: emailRef.id
+        });
+
+        return updatedCount;
       });
       setIsSubmitted(true);
       setEmail('');
-      try {
-        const result = await fetchWaitlistCount();
-        setWaitlistCount(result.data.count);
-        setWaitlistCountError(false);
-      } catch (error) {
-        console.error('Error refreshing waitlist count:', error);
-        setWaitlistCountError(true);
-      }
+      setWaitlistCount(nextCount);
+      setWaitlistCountError(false);
     } catch (error) {
       console.error("Error adding document: ", error);
       setErrorMsg("Something went wrong. Please try again.");

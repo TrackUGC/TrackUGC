@@ -2,24 +2,21 @@
 
 ## Deploying
 
-The waitlist counter is served by a Firebase callable Cloud Function. Deploy it
-first to the configured `trackugc` project after installing the Firebase CLI
-and logging in:
-
 ```sh
 firebase login
-firebase deploy --only functions:getWaitlistCount
-```
-
-Deploying Cloud Functions requires the Firebase project to use the Blaze
-pay-as-you-go plan. The callable returns only the waitlist document count; it
-does not return email addresses.
-
-After the function deploys, build the site and publish it to `gh-pages`:
-
-```sh
+firebase deploy --only firestore:rules
 npm run deploy
 ```
+
+The waitlist count is stored alongside email submissions and updated in the
+same Firestore transaction. The rules allow reading only the counter, not
+email documents, and require each counter increment to accompany a new waitlist
+entry. This avoids Cloud Functions and its Blaze-plan requirement. Before
+deploying the rules, merge them with any existing Firestore rules so they don't
+replace protections for other collections. Create
+`settings/waitlistCounter` once in Firestore with `count` set to the current
+number of documents in `waitlist` and `lastEntryId` set to `initial`; this
+seeds the counter for existing signups.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /waitlist/{entryId} {
+      function counterTracksThisEntry() {
+        let counterPath = /databases/$(database)/documents/settings/waitlistCounter;
+        let counterAfter = getAfter(counterPath);
+        return counterAfter.data.lastEntryId == entryId
+          && (exists(counterPath)
+            ? counterAfter.data.count == get(counterPath).data.count + 1
+            : counterAfter.data.count == 1);
+      }
+
+      allow read, update, delete: if false;
+      allow create: if request.resource.data.keys().hasAll(['email', 'timestamp'])
+        && request.resource.data.keys().hasOnly(['email', 'timestamp'])
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254
+        && request.resource.data.email.matches('^[^@]+@[^@]+\\.[^@]+$')
+        && request.resource.data.timestamp is timestamp
+        && counterTracksThisEntry();
+    }
+
+    match /settings/waitlistCounter {
+      function isNewWaitlistEntry(entryId) {
+        let entryPath = /databases/$(database)/documents/waitlist/$(entryId);
+        return !exists(entryPath) && existsAfter(entryPath);
+      }
+
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['count', 'lastEntryId'])
+        && request.resource.data.keys().hasOnly(['count', 'lastEntryId'])
+        && request.resource.data.count == 1
+        && request.resource.data.lastEntryId is string
+        && isNewWaitlistEntry(request.resource.data.lastEntryId);
+      allow update: if request.resource.data.keys().hasAll(['count', 'lastEntryId'])
+        && request.resource.data.keys().hasOnly(['count', 'lastEntryId'])
+        && request.resource.data.count == resource.data.count + 1
+        && request.resource.data.lastEntryId is string
+        && isNewWaitlistEntry(request.resource.data.lastEntryId);
+      allow delete: if false;
+    }
+  }
+}
