@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import { db } from './firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, getCountFromServer } from 'firebase/firestore';
 import {
   Folder,
   UploadCloud,
@@ -138,8 +138,26 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [waitlistCount, setWaitlistCount] = useState(null);
+  const [waitlistCountError, setWaitlistCountError] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+    getCountFromServer(collection(db, 'waitlist'))
+      .then((snapshot) => {
+        if (isActive) setWaitlistCount(snapshot.data().count);
+      })
+      .catch((error) => {
+        console.error('Error loading waitlist count:', error);
+        if (isActive) setWaitlistCountError(true);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -225,6 +243,14 @@ function App() {
       });
       setIsSubmitted(true);
       setEmail('');
+      try {
+        const snapshot = await getCountFromServer(collection(db, 'waitlist'));
+        setWaitlistCount(snapshot.data().count);
+        setWaitlistCountError(false);
+      } catch (error) {
+        console.error('Error refreshing waitlist count:', error);
+        setWaitlistCountError(true);
+      }
     } catch (error) {
       console.error("Error adding document: ", error);
       setErrorMsg("Something went wrong. Please try again.");
@@ -308,7 +334,13 @@ function App() {
         )}
       </header>
 
-      <div className="spots-counter">0/20 spots taken</div>
+      <div className="spots-counter" aria-live="polite">
+        {waitlistCountError && waitlistCount === null
+          ? 'Count unavailable'
+          : waitlistCount === null
+            ? 'Loading count...'
+            : `${waitlistCount}/20 spots taken`}
+      </div>
 
       {/* Page Content */}
       {currentPage === 'waitlist' ? (
