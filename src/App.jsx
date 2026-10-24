@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { db } from './firebase';
-import { collection, addDoc, getCountFromServer } from 'firebase/firestore';
+import { app, db } from './firebase';
+import { collection, addDoc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
   Folder,
   UploadCloud,
@@ -38,6 +39,11 @@ import logo from './assets/TrackUGClogo.png';
 import doodle1 from './assets/Doodle1.png';
 import doodle2 from './assets/Doodle2.png';
 import doodle3 from './assets/Doodle3.png';
+
+const fetchWaitlistCount = httpsCallable(
+  getFunctions(app, 'us-central1'),
+  'getWaitlistCount'
+);
 
 const DUMMY_CREATORS = [
   {
@@ -145,9 +151,9 @@ function App() {
 
   useEffect(() => {
     let isActive = true;
-    getCountFromServer(collection(db, 'waitlist'))
-      .then((snapshot) => {
-        if (isActive) setWaitlistCount(snapshot.data().count);
+    fetchWaitlistCount()
+      .then((result) => {
+        if (isActive) setWaitlistCount(result.data.count);
       })
       .catch((error) => {
         console.error('Error loading waitlist count:', error);
@@ -244,8 +250,8 @@ function App() {
       setIsSubmitted(true);
       setEmail('');
       try {
-        const snapshot = await getCountFromServer(collection(db, 'waitlist'));
-        setWaitlistCount(snapshot.data().count);
+        const result = await fetchWaitlistCount();
+        setWaitlistCount(result.data.count);
         setWaitlistCountError(false);
       } catch (error) {
         console.error('Error refreshing waitlist count:', error);

@@ -1,5 +1,26 @@
 # React + Vite
 
+## Deploying
+
+The waitlist counter is served by a Firebase callable Cloud Function. Deploy it
+first to the configured `trackugc` project after installing the Firebase CLI
+and logging in:
+
+```sh
+firebase login
+firebase deploy --only functions:getWaitlistCount
+```
+
+Deploying Cloud Functions requires the Firebase project to use the Blaze
+pay-as-you-go plan. The callable returns only the waitlist document count; it
+does not return email addresses.
+
+After the function deploys, build the site and publish it to `gh-pages`:
+
+```sh
+npm run deploy
+```
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
