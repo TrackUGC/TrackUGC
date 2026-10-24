@@ -447,7 +447,7 @@ function App() {
               <p className="hero-offer">
                 <span className="hero-offer-dot" aria-hidden="true" />
                 <span>First 20 early birds:</span>
-                <strong>$49/month</strong>
+                <strong>$0/month</strong>
                 <span className="hero-offer-compare">instead of <s>$99</s></span>
               </p>
               <h1>
